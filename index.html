@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Attention Span Test</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: rgba(255,255,255,0.06);
+    --surface-hover: rgba(255,255,255,0.10);
+    --border: rgba(255,255,255,0.10);
+    --accent: #7c6bff;
+    --accent2: #b06bff;
+    --text: #f0f0ff;
+    --muted: rgba(240,240,255,0.45);
+    --success: #4ade80;
+    --danger: #f87171;
+    --gold: #fbbf24;
+    --radius: 20px;
+    --font: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  /* Ambient background blobs */
+  body::before, body::after {
+    content: '';
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::before {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(124,107,255,0.18) 0%, transparent 70%);
+    top: -100px; left: -100px;
+  }
+  body::after {
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(176,107,255,0.15) 0%, transparent 70%);
+    bottom: -80px; right: -80px;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 520px;
+    padding: 24px 20px 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  /* Header */
+  .header {
+    width: 100%;
+    text-align: center;
+    padding-top: 20px;
+  }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    color: var(--text);
+  }
+  .header p {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* Best record badge */
+  .best-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(251,191,36,0.10);
+    border: 1px solid rgba(251,191,36,0.22);
+    border-radius: 40px;
+    padding: 8px 18px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--gold);
+    transition: opacity 0.3s;
+  }
+  .best-badge span.star { font-size: 16px; }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 4px;
+    gap: 4px;
+    width: 100%;
+  }
+  .tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 9px 0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.22s ease;
+  }
+  .tab-btn.active {
+    background: rgba(124,107,255,0.22);
+    color: var(--text);
+    box-shadow: 0 0 0 1px rgba(124,107,255,0.3);
+  }
+
+  /* Panels */
+  .panel { width: 100%; display: none; flex-direction: column; align-items: center; gap: 20px; }
+  .panel.active { display: flex; }
+
+  /* Main card */
+  .card {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    padding: 32px 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+
+  /* Timer display */
+  .timer-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .timer-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .timer-display {
+    font-size: 76px;
+    font-weight: 700;
+    letter-spacing: -4px;
+    line-height: 1;
+    background: linear-gradient(135deg, #fff 30%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-variant-numeric: tabular-nums;
+    transition: opacity 0.2s;
+  }
+  .timer-display.paused { opacity: 0.35; }
+
+  /* Status indicator */
+  .status-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+  .status-dot.focused {
+    background: var(--success);
+    box-shadow: 0 0 8px var(--success);
+    animation: pulse-dot 1.4s infinite;
+  }
+  .status-dot.unfocused { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+
+  /* Webcam preview */
+  .webcam-container {
+    position: relative;
+    width: 120px; height: 120px;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1.5px solid var(--border);
+    background: #111;
+    flex-shrink: 0;
+  }
+  .webcam-container canvas {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+  }
+  .webcam-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    padding: 8px;
+  }
+  .webcam-badge {
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-radius: 20px;
+    background: rgba(0,0,0,0.6);
+    color: var(--muted);
+  }
+  .webcam-badge.face { color: var(--success); background: rgba(74,222,128,0.15); }
+  .webcam-badge.no-face { color: var(--danger); background: rgba(248,113,113,0.15); }
+
+  /* Countdown overlay */
+  .countdown-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(10,10,15,0.85);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 140px;
+    font-weight: 800;
+    background-clip: text;
+    -webkit-background-clip: text;
+    animation: countdown-pop 0.6s ease forwards;
+    display: none;
+  }
+  .countdown-number {
+    background: linear-gradient(135deg, #fff 0%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: countdown-pop 0.6s ease;
+  }
+  @keyframes countdown-pop {
+    0% { transform: scale(1.5); opacity: 0; }
+    40% { opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* Buttons */
+  .btn {
+    border: none;
+    font-family: var(--font);
+    font-weight: 600;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    letter-spacing: -0.2px;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    font-size: 17px;
+    padding: 16px 48px;
+    box-shadow: 0 8px 32px rgba(124,107,255,0.35);
+  }
+  .btn-primary:hover { box-shadow: 0 12px 40px rgba(124,107,255,0.5); transform: translateY(-1px); }
+  .btn-secondary {
+    background: var(--surface-hover);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 14px;
+    padding: 11px 24px;
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.13); }
+  .btn-danger {
+    background: rgba(248,113,113,0.12);
+    border: 1px solid rgba(248,113,113,0.22);
+    color: var(--danger);
+    font-size: 14px;
+    padding: 11px 24px;
+  }
+  .btn-danger:hover { background: rgba(248,113,113,0.2); }
+
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+  /* Fallback notice */
+  .notice {
+    font-size: 12px;
+    color: var(--muted);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    text-align: center;
+    line-height: 1.5;
+    width: 100%;
+  }
+  .notice strong { color: rgba(240,240,255,0.75); }
+
+  /* Records panel */
+  .records-empty {
+    text-align: center;
+    color: var(--muted);
+    font-size: 15px;
+    padding: 40px 0;
+  }
+  .records-list {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .record-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    animation: slide-in 0.3s ease;
+  }
+  .record-item.best-record {
+    border-color: rgba(251,191,36,0.3);
+    background: rgba(251,191,36,0.07);
+  }
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .record-date { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .record-duration {
+    font-size: 20px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #fff, var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .record-crown { font-size: 16px; margin-left: 6px; }
+  .clear-btn { font-size: 13px; color: var(--danger); background: none; border: none; cursor: pointer; font-family: var(--font); opacity: 0.7; }
+  .clear-btn:hover { opacity: 1; }
+  .records-header { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+
+  /* Interrupt flash */
+  .interrupt-flash {
+    position: fixed;
+    inset: 0;
+    background: rgba(248,113,113,0.08);
+    pointer-events: none;
+    z-index: 50;
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+  .interrupt-flash.show { opacity: 1; }
+
+  /* Result card */
+  .result-card {
+    text-align: center;
+    padding: 8px 0;
+  }
+  .result-label { font-size: 13px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+  .result-time {
+    font-size: 48px;
+    font-weight: 700;
+    letter-spacing: -2px;
+    background: linear-gradient(135deg, var(--success) 0%, #34d399 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .result-sub { font-size: 14px; color: var(--muted); margin-top: 6px; }
+  .result-new-best { font-size: 13px; color: var(--gold); margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<div class="interrupt-flash" id="interruptFlash"></div>
+
+<div class="countdown-overlay" id="countdownOverlay">
+  <div class="countdown-number" id="countdownNumber"></div>
+</div>
+
+<div class="app">
+  <div class="header">
+    <h1>Attention Span Test</h1>
+    <p>How long can you truly focus?</p>
+  </div>
+
+  <div class="best-badge" id="bestBadge">
+    <span class="star">⭐</span>
+    <span id="bestText">Best: —</span>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('test')">Test</button>
+    <button class="tab-btn" onclick="switchTab('records')">Records</button>
+  </div>
+
+  <!-- TEST PANEL -->
+  <div class="panel active" id="panel-test">
+    <div class="card" id="mainCard">
+
+      <!-- Idle state -->
+      <div id="stateIdle" style="display:flex;flex-direction:column;align-items:center;gap:20px;width:100%;">
+        <div class="timer-wrap">
+          <div class="timer-label">Focus Time</div>
+          <div class="timer-display" id="timerIdle">00:00</div>
+        </div>
+        <button class="btn btn-primary" onclick="beginSequence()">Start Test</button>
+        <div class="notice">
+          The timer pauses the moment you look away, switch tabs, or stop interacting.
+          <br><strong>Webcam</strong> is used to detect your face for best accuracy.
+        </div>
+      </div>
+
+      <!-- Active/Running state -->
+      <div id="stateRunning" style="display:none;flex-direction:column;align-items:center;gap:20px;width:100%;">
+        <div style="display:flex;gap:16px;align-items:center;width:100%;justify-content:center;">
+          <div class="webcam-container" id="webcamContainer">
+            <div class="webcam-overlay" id="webcamOverlay">Requesting<br>camera…</div>
+            <div class="webcam-badge" id="webcamBadge">CAM</div>
+          </div>
+          <div class="timer-wrap" style="flex:1;align-items:flex-start;">
+            <div class="timer-label">Focus Time</div>
+            <div class="timer-display" id="timerRunning">00:00</div>
+            <div class="status-row" style="margin-top:6px;">
+              <div class="status-dot" id="statusDot"></div>
+              <span id="statusText">Waiting…</span>
+            </div>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-danger" onclick="stopTest()">Stop</button>
+          <button class="btn btn-secondary" onclick="resetTest()">Reset</button>
+        </div>
+      </div>
+
+      <!-- Result state -->
+      <div id="stateResult" style="display:none;flex-direction:column;align-items:center;gap:20px;width:100%;">
+        <div class="result-card">
+          <div class="result-label">Session Complete</div>
+          <div class="result-time" id="resultTime">00:00</div>
+          <div class="result-sub" id="resultSub">—</div>
+          <div class="result-new-best" id="resultNewBest" style="display:none;">🏆 New personal best!</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="beginSequence()">Try Again</button>
+          <button class="btn btn-secondary" onclick="switchTab('records')">View Records</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RECORDS PANEL -->
+  <div class="panel" id="panel-records">
+    <div class="card" style="padding:24px 20px;">
+      <div class="records-header">
+        <span style="font-size:16px;font-weight:600;">Past Sessions</span>
+        <button class="clear-btn" onclick="clearRecords()">Clear All</button>
+      </div>
+      <div id="recordsList" style="width:100%;margin-top:12px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TensorFlow + Teachable Machine -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+const TM_MODEL_URL = "https://teachablemachine.withgoogle.com/models/WxX1vMtli/";
+const INACTIVITY_TIMEOUT_MS = 4000; // ms before inactivity kills focus
+const FACE_THRESHOLD = 0.65;        // confidence needed to count as "face detected"
+// The class in your TM model that represents "focused / face present"
+// Adjust if your model's class names differ
+const FOCUSED_CLASS_HINTS = ["face", "focused", "present", "person", "Class 1", "class 1", "1"];
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let state = 'idle'; // idle | running | result
+let elapsed = 0;         // ms of focus time accumulated
+let timerInterval = null;
+let lastTick = null;
+let isFocused = false;
+
+let webcam = null;
+let tmModel = null;
+let maxPredictions = 0;
+let tmLoopRunning = false;
+let faceDetected = false;
+let webcamAvailable = false;
+let focusedClassIndex = -1; // which TM class = focused
+
+let lastActivityTime = Date.now();
+let visibilityFocused = true;
+let inactivityTimer = null;
+
+// ─── ACTIVITY TRACKING ───────────────────────────────────────────────────────
+function onUserActivity() {
+  lastActivityTime = Date.now();
+  clearTimeout(inactivityTimer);
+  inactivityTimer = setTimeout(() => {
+    triggerInterrupt('Inactivity detected');
+  }, INACTIVITY_TIMEOUT_MS);
+  evaluateFocus();
+}
+
+document.addEventListener('mousemove', onUserActivity);
+document.addEventListener('mousedown', onUserActivity);
+document.addEventListener('keydown', onUserActivity);
+document.addEventListener('touchstart', onUserActivity);
+document.addEventListener('scroll', onUserActivity);
+
+document.addEventListener('visibilitychange', () => {
+  visibilityFocused = document.visibilityState === 'visible';
+  if (!visibilityFocused) triggerInterrupt('Tab switched');
+  else evaluateFocus();
+});
+
+window.addEventListener('blur', () => {
+  visibilityFocused = false;
+  triggerInterrupt('Window lost focus');
+});
+window.addEventListener('focus', () => {
+  visibilityFocused = true;
+  evaluateFocus();
+});
+
+// ─── FOCUS EVALUATION ────────────────────────────────────────────────────────
+function evaluateFocus() {
+  if (state !== 'running') return;
+  const activityOk = (Date.now() - lastActivityTime) < INACTIVITY_TIMEOUT_MS;
+  const camOk = webcamAvailable ? faceDetected : true; // fallback: ignore cam
+  const focused = visibilityFocused && activityOk && camOk;
+
+  if (focused !== isFocused) {
+    isFocused = focused;
+    updateStatusUI();
+    if (!isFocused) flashInterrupt();
+  }
+}
+
+function triggerInterrupt(reason) {
+  if (state !== 'running') return;
+  isFocused = false;
+  updateStatusUI();
+  flashInterrupt();
+  console.log('Focus lost:', reason);
+}
+
+function flashInterrupt() {
+  const el = document.getElementById('interruptFlash');
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 300);
+}
+
+// ─── TIMER ───────────────────────────────────────────────────────────────────
+function startTimerLoop() {
+  lastTick = performance.now();
+  timerInterval = setInterval(() => {
+    if (isFocused) {
+      const now = performance.now();
+      elapsed += now - lastTick;
+    }
+    lastTick = performance.now();
+    updateTimerUI();
+  }, 100);
+}
+
+function stopTimerLoop() {
+  clearInterval(timerInterval);
+  timerInterval = null;
+}
+
+function formatTime(ms) {
+  const totalSec = Math.floor(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function updateTimerUI() {
+  const el = document.getElementById('timerRunning');
+  el.textContent = formatTime(elapsed);
+  el.classList.toggle('paused', !isFocused);
+}
+
+function updateStatusUI() {
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  if (isFocused) {
+    dot.className = 'status-dot focused';
+    txt.textContent = 'Focused';
+  } else {
+    dot.className = 'status-dot unfocused';
+    txt.textContent = 'Not focused — timer paused';
+  }
+}
+
+// ─── WEBCAM / TM ─────────────────────────────────────────────────────────────
+async function setupWebcam() {
+  const container = document.getElementById('webcamContainer');
+  const overlay = document.getElementById('webcamOverlay');
+  const badge = document.getElementById('webcamBadge');
+
+  try {
+    const modelURL = TM_MODEL_URL + "model.json";
+    const metadataURL = TM_MODEL_URL + "metadata.json";
+
+    tmModel = await tmImage.load(modelURL, metadataURL);
+    maxPredictions = tmModel.getTotalClasses();
+
+    // Figure out which class index is "face / focused"
+    // We'll check class names from the model
+    const classNames = [];
+    for (let i = 0; i < maxPredictions; i++) {
+      // TM doesn't expose names directly but we can call predict and parse
+      classNames.push(i);
+    }
+
+    webcam = new tmImage.Webcam(200, 200, true);
+    await webcam.setup();
+    await webcam.play();
+
+    // Clear overlay, append canvas
+    overlay.style.display = 'none';
+    container.appendChild(webcam.canvas);
+    webcam.canvas.style.width = '100%';
+    webcam.canvas.style.height = '100%';
+    webcam.canvas.style.objectFit = 'cover';
+    webcam.canvas.style.transform = 'scaleX(-1)';
+
+    webcamAvailable = true;
+    badge.textContent = 'LIVE';
+    badge.className = 'webcam-badge';
+
+    // Start prediction loop
+    tmLoopRunning = true;
+    tmLoop();
+
+    console.log('Webcam + TM model ready. Classes:', maxPredictions);
+  } catch (err) {
+    console.warn('Webcam/TM failed, using fallback:', err);
+    overlay.textContent = 'Camera unavailable — using fallback tracking';
+    badge.textContent = 'OFF';
+    webcamAvailable = false;
+    // In fallback, set faceDetected = true so only tab/activity matters
+    faceDetected = true;
+  }
+}
+
+async function tmLoop() {
+  if (!tmLoopRunning || !webcam || !tmModel) return;
+  webcam.update();
+
+  try {
+    const prediction = await tmModel.predict(webcam.canvas);
+
+    // Find highest-probability class
+    let maxProb = 0;
+    let maxIdx = 0;
+    for (let i = 0; i < prediction.length; i++) {
+      if (prediction[i].probability > maxProb) {
+        maxProb = prediction[i].probability;
+        maxIdx = i;
+      }
+    }
+
+    // Heuristic: if there are 2 classes, class 0 = face, class 1 = no face (common TM setup)
+    // Or check name hints
+    let isFaceClass = false;
+    const className = prediction[maxIdx].className.toLowerCase();
+    if (FOCUSED_CLASS_HINTS.some(h => className.includes(h.toLowerCase()))) {
+      isFaceClass = true;
+    } else if (maxPredictions === 2 && maxIdx === 0) {
+      // Default: first class in a 2-class model is usually the positive class
+      isFaceClass = true;
+    } else if (maxPredictions === 1) {
+      isFaceClass = true;
+    }
+
+    const prevFace = faceDetected;
+    faceDetected = isFaceClass && maxProb >= FACE_THRESHOLD;
+
+    // Update badge
+    const badge = document.getElementById('webcamBadge');
+    if (faceDetected) {
+      badge.textContent = '✓ FACE';
+      badge.className = 'webcam-badge face';
+    } else {
+      badge.textContent = '✗ NO FACE';
+      badge.className = 'webcam-badge no-face';
+    }
+
+    if (prevFace !== faceDetected) {
+      if (!faceDetected) triggerInterrupt('Face not detected');
+      else evaluateFocus();
+    }
+  } catch(e) {}
+
+  if (tmLoopRunning) requestAnimationFrame(tmLoop);
+}
+
+function stopWebcam() {
+  tmLoopRunning = false;
+  if (webcam) {
+    try { webcam.stop(); } catch(e) {}
+    // Remove canvas from DOM
+    const container = document.getElementById('webcamContainer');
+    const canvas = container.querySelector('canvas');
+    if (canvas) canvas.remove();
+    webcam = null;
+  }
+  tmModel = null;
+  webcamAvailable = false;
+}
+
+// ─── COUNTDOWN ───────────────────────────────────────────────────────────────
+function showCountdown() {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('countdownOverlay');
+    const num = document.getElementById('countdownNumber');
+    overlay.style.display = 'flex';
+    let count = 3;
+    num.textContent = count;
+
+    const tick = setInterval(() => {
+      count--;
+      if (count <= 0) {
+        clearInterval(tick);
+        overlay.style.display = 'none';
+        resolve();
+      } else {
+        // Re-trigger animation
+        num.style.animation = 'none';
+        num.offsetHeight; // reflow
+        num.style.animation = 'countdown-pop 0.6s ease';
+        num.textContent = count;
+      }
+    }, 1000);
+  });
+}
+
+// ─── FLOW ─────────────────────────────────────────────────────────────────────
+async function beginSequence() {
+  // Reset
+  elapsed = 0;
+  isFocused = false;
+  faceDetected = false;
+
+  setState('running');
+  document.getElementById('timerRunning').textContent = '00:00';
+
+  // Start webcam in background (non-blocking)
+  setupWebcam().then(() => {
+    evaluateFocus();
+  });
+
+  // Countdown
+  await showCountdown();
+
+  // Begin
+  state = 'running';
+  lastActivityTime = Date.now();
+  visibilityFocused = document.visibilityState === 'visible';
+  clearTimeout(inactivityTimer);
+  inactivityTimer = setTimeout(() => triggerInterrupt('Inactivity'), INACTIVITY_TIMEOUT_MS);
+  evaluateFocus();
+  startTimerLoop();
+}
+
+function stopTest() {
+  if (state !== 'running') return;
+  stopTimerLoop();
+  stopWebcam();
+  clearTimeout(inactivityTimer);
+  state = 'result';
+  const sec = Math.floor(elapsed / 1000);
+  if (sec > 0) saveRecord(sec);
+  showResult(sec);
+}
+
+function resetTest() {
+  stopTimerLoop();
+  stopWebcam();
+  clearTimeout(inactivityTimer);
+  elapsed = 0;
+  isFocused = false;
+  setState('idle');
+  state = 'idle';
+  document.getElementById('timerIdle').textContent = '00:00';
+}
+
+function setState(s) {
+  document.getElementById('stateIdle').style.display = s === 'idle' ? 'flex' : 'none';
+  document.getElementById('stateRunning').style.display = s === 'running' ? 'flex' : 'none';
+  document.getElementById('stateResult').style.display = s === 'result' ? 'flex' : 'none';
+  // Reset webcam container overlay for next run
+  if (s === 'idle' || s === 'result') {
+    const overlay = document.getElementById('webcamOverlay');
+    overlay.style.display = 'flex';
+    overlay.textContent = 'Requesting\ncamera…';
+    const badge = document.getElementById('webcamBadge');
+    badge.textContent = 'CAM';
+    badge.className = 'webcam-badge';
+  }
+}
+
+function showResult(sec) {
+  setState('result');
+  document.getElementById('resultTime').textContent = formatTime(sec * 1000);
+  document.getElementById('resultSub').textContent =
+    sec < 10 ? 'Keep practicing!' :
+    sec < 30 ? 'Good start!' :
+    sec < 60 ? 'Solid focus!' :
+    sec < 120 ? 'Impressive!' : 'Outstanding focus! 🧠';
+
+  const best = getBest();
+  const newBestEl = document.getElementById('resultNewBest');
+  if (best && sec === best) {
+    newBestEl.style.display = 'block';
+  } else {
+    newBestEl.style.display = 'none';
+  }
+}
+
+// ─── RECORDS ─────────────────────────────────────────────────────────────────
+function getRecords() {
+  try { return JSON.parse(localStorage.getItem('attentionRecords') || '[]'); } catch { return []; }
+}
+function saveRecord(sec) {
+  const records = getRecords();
+  records.unshift({ sec, date: new Date().toISOString() });
+  localStorage.setItem('attentionRecords', JSON.stringify(records.slice(0, 100)));
+  updateBestBadge();
+}
+function getBest() {
+  const records = getRecords();
+  if (!records.length) return null;
+  return Math.max(...records.map(r => r.sec));
+}
+function updateBestBadge() {
+  const best = getBest();
+  document.getElementById('bestText').textContent = best ? `Best: ${formatTime(best * 1000)}` : 'Best: —';
+}
+function clearRecords() {
+  if (!confirm('Clear all records?')) return;
+  localStorage.removeItem('attentionRecords');
+  updateBestBadge();
+  renderRecords();
+}
+function renderRecords() {
+  const records = getRecords();
+  const container = document.getElementById('recordsList');
+  if (!records.length) {
+    container.innerHTML = '<div class="records-empty">No sessions yet.<br>Complete a test to see your results.</div>';
+    return;
+  }
+  const best = getBest();
+  container.innerHTML = records.map((r, i) => {
+    const d = new Date(r.date);
+    const dateStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    const timeStr = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    const isBest = r.sec === best;
+    return `
+      <div class="record-item ${isBest ? 'best-record' : ''}" style="animation-delay:${i*0.04}s">
+        <div>
+          <div style="font-size:14px;font-weight:500;">${isBest ? '👑 ' : ''}Session ${records.length - i}</div>
+          <div class="record-date">${dateStr} · ${timeStr}</div>
+        </div>
+        <div style="display:flex;align-items:center;">
+          <div class="record-duration">${formatTime(r.sec * 1000)}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  document.querySelectorAll('.tab-btn')[tab === 'test' ? 0 : 1].classList.add('active');
+  if (tab === 'records') renderRecords();
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+updateBestBadge();
+</script>
+</body>
+</html>
